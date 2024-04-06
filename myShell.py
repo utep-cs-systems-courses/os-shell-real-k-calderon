@@ -1,11 +1,11 @@
-import os, sys
+#! /usr/bin/env python3
 
-env = os.environ
+import os, sys, time, re
+
 for key in os.environ:
     print(key, "=", os.environ.get(key))
-
-userName = os.environ.get("USERNAME")
-computerName = os.environ.get("HOSTNAME") or os.environ.get("COMPUTERNAME")
+userName = os.environ.get("USERNAME") or os.environ.get("USER")
+computerName = os.environ.get("HOSTNAME") or os.environ.get("COMPUTERNAME") or os.environ.get("NAME")
 currentDir = os.getcwd()
 print(f"{userName}@{computerName}:{currentDir}")
 
@@ -15,6 +15,7 @@ while True:
         print(f"$ ", end = "")
 
         command = input().strip().split()
+        print("command", command)
 
         if command[0] == "exit":
             sys.exit(0)
@@ -32,3 +33,33 @@ while True:
         else:
             #TODO: handle commands
             print(f"Command not recognized: {command[0]}")
+            pid = os.getpid()
+
+            os.write(1, ("About to fork (pid:%d)\n" % pid).encode())
+
+            rc = os.fork()
+
+            if rc < 0:
+                os.write(2, ("fork failed, returning %d\n" % rc).encode())
+                sys.exit(1)
+
+            elif rc == 0:                   # child
+                os.write(1, ("Child: My pid==%d.  Parent's pid=%d\n" % 
+                            (os.getpid(), pid)).encode())
+                for dir in re.split(":", os.environ['PATH']): # try each directory in the path
+                    program = "%s/%s" % (dir, command[0])
+                    os.write(1, ("Child:  ...trying to exec %s\n" % program).encode())
+                    try:
+                        os.execve(program, command, os.environ) # try to exec program
+                    except FileNotFoundError:             # ...expected
+                        pass                              # ...fail quietly
+
+                os.write(2, ("Child:    Could not exec %s\n" % command[0]).encode())
+                sys.exit(1)                 # terminate with error
+
+            else:                           # parent (forked ok)
+                os.write(1, ("Parent: My pid=%d.  Child's pid=%d\n" % 
+                            (pid, rc)).encode())
+                childPidCode = os.wait()
+                os.write(1, ("Parent: Child %d terminated with exit code %d\n" % 
+                            childPidCode).encode())
