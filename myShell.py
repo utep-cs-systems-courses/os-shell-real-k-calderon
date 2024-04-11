@@ -10,6 +10,36 @@ currentDir = os.getcwd()
 print(f"{userName}@{computerName}:{currentDir}")
 
 
+def redirect(command):
+    tempDisplayFD = -1
+    # check for redirects
+    # https://stackoverflow.com/questions/13160564/python-index-of-item-in-list-without-error
+    try:
+        targetIndex = command.index(">") + 1
+        print("targetIndex", targetIndex)
+    except ValueError:
+        targetIndex = -1
+
+    if targetIndex > -1:
+        targetOutput = command[targetIndex]
+        print("targetOutput", targetOutput)
+        tempDisplayFD = os.dup(1)
+        # disconnect FD1
+        os.close(1)
+        # connect the output file to FD1
+        os.open(targetOutput, os.O_CREAT | os.O_WRONLY)
+        # Dr F says this needs to be here
+        os.set_inheritable(1, True)
+        # print("Redirect Complete")
+        command = command[:(targetIndex - 1)]
+        print("command", command)
+    return (command, tempDisplayFD)
+
+def restore(tempDisplayFD):
+    if tempDisplayFD > -1:
+        os.close(1)
+        os.open(tempDisplayFD, os.O_CREAT | os.O_WRONLY)
+
 while True:
         print(f"{userName}@{computerName}:{currentDir}")
         print(f"$ ", end = "")
@@ -25,13 +55,13 @@ while True:
                 newPath = command[1]
                 if os.path.isdir(newPath):
                     currentDir = newPath
+                    os.chdir(newPath)
                 else:
                     print(f"cd: no such directory: {newPath}")
             else:
                 print("cd: path not specified")
 
         else:
-            #TODO: handle commands
             print(f"Command not recognized: {command[0]}")
             pid = os.getpid()
 
@@ -46,13 +76,20 @@ while True:
             elif rc == 0:                   # child
                 os.write(1, ("Child: My pid==%d.  Parent's pid=%d\n" % 
                             (os.getpid(), pid)).encode())
+                
+
+
                 for dir in re.split(":", os.environ['PATH']): # try each directory in the path
                     program = "%s/%s" % (dir, command[0])
                     os.write(1, ("Child:  ...trying to exec %s\n" % program).encode())
-                    try:
-                        os.execve(program, command, os.environ) # try to exec program
-                    except FileNotFoundError:             # ...expected
-                        pass                              # ...fail quietly
+                    if os.path.isfile(program):
+                        try:
+                            command, tempDisplayFD = redirect(command)  
+                            print("command", command)
+                            os.execve(program, command, os.environ) # try to exec program
+                            # process terminates after succesfully invoking execve
+                        except FileNotFoundError:             # ...expected
+                            pass                              # ...fail quietly
 
                 os.write(2, ("Child:    Could not exec %s\n" % command[0]).encode())
                 sys.exit(1)                 # terminate with error
