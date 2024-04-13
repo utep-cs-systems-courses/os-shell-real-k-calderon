@@ -54,7 +54,6 @@ while True:
                     if os.path.isfile(program):
                         try:
                             command = redirect.handler(command)
-                            print("command", command)
                             os.execve(program, command, os.environ) # try to exec program
                             # process terminates after succesfully invoking execve
                         except FileNotFoundError:             # ...expected
