@@ -3,7 +3,12 @@ import os, sys, time, re
 def output(command, fileNameIndex):
     # check for redirects
     if fileNameIndex > -1:
-        targetOutput = command[fileNameIndex]
+        # https://stackoverflow.com/questions/13160564/python-index-of-item-in-list-without-error
+        try:
+            targetOutput = command[fileNameIndex]
+        except IndexError:
+            print("No output specified")
+            exit(1)
         # print("targetOutput", targetOutput)
         # disconnect FD1
         os.close(1)
@@ -12,37 +17,35 @@ def output(command, fileNameIndex):
         # Dr F says this needs to be here
         os.set_inheritable(1, True)
         # print("Redirect Complete")
-        
-        
-    return fileNameIndex - 1
+        return fileNameIndex - 1
+    return fileNameIndex
 
 def input(command, fileNameIndex):
     if fileNameIndex > -1:
-        targetInput = command[fileNameIndex]
+        try:
+            targetInput = command[fileNameIndex]
+        except IndexError:
+            print("No input file specified")
+            exit(1)
         os.close(0)
-        newFd = os.open(targetInput, os.O_RDONLY)
+        os.open(targetInput, os.O_RDONLY)
         # print("newFd", newFd)
         os.set_inheritable(0, True)
         
-        
-    return fileNameIndex - 1
+        return fileNameIndex - 1
+    return fileNameIndex
 
 def handler(command):
     # check for output redirection
     firstRedirectIndex = len(command)
     # print("firstRedirectIndex", firstRedirectIndex)
-    try:
-        # https://stackoverflow.com/questions/13160564/python-index-of-item-in-list-without-error
+    if ">" in command:
         fileNameIndex = command.index(">") + 1
-        firstRedirectIndex = output(command, fileNameIndex)
-    except ValueError:
-        fileNameIndex = -1
+        firstRedirectIndex = min(output(command, fileNameIndex), firstRedirectIndex)
     # check for input redirection
-    try:
+    if "<" in command:
         fileNameIndex = command.index("<") + 1
         firstRedirectIndex = min(input(command, fileNameIndex), firstRedirectIndex)
-    except ValueError:
-        fileNameIndex = -1
     # print("command after processing redirects", command)
     # print("firstRedirectIndex", firstRedirectIndex)
     command = command[:(firstRedirectIndex)]
