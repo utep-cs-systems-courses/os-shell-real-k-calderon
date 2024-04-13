@@ -3,12 +3,9 @@
 import os, sys, time, re
 import redirect
 
-for key in os.environ:
-    print(key, "=", os.environ.get(key))
 userName = os.environ.get("USERNAME") or os.environ.get("USER")
 computerName = os.environ.get("HOSTNAME") or os.environ.get("COMPUTERNAME") or os.environ.get("NAME")
 currentDir = os.getcwd()
-print(f"{userName}@{computerName}:{currentDir}")
 
 
 while True:
