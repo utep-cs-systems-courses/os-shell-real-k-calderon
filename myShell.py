@@ -2,6 +2,7 @@
 
 import os, sys, time, re
 import redirect
+import pipeHelper
 
 userName = os.environ.get("USERNAME") or os.environ.get("USER")
 computerName = os.environ.get("HOSTNAME") or os.environ.get("COMPUTERNAME") or os.environ.get("NAME")
@@ -54,6 +55,7 @@ while True:
                 if os.path.isfile(program):
                     try:
                         command = redirect.handler(command)
+                        command = pipeHelper.handler(command)
                         os.execve(program, command, os.environ) # try to exec program
                         # process terminates after succesfully invoking execve
                     except FileNotFoundError:             # ...expected
