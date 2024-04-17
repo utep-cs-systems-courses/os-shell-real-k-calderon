@@ -53,13 +53,3 @@ def handler(command):
     return command
 
 
-
-
-
-
-'''
-def restore(tempDisplayFD):
-    if tempDisplayFD > -1:
-        os.close(1)
-        os.open(tempDisplayFD, os.O_CREAT | os.O_WRONLY)
-'''

@@ -46,18 +46,21 @@ while True:
             os.write(1, ("Child: My pid==%d.  Parent's pid=%d\n" % 
                         (os.getpid(), pid)).encode())
             
-
-
+        
             for dir in re.split(":", os.environ['PATH']): # try each directory in the path
                 program = "%s/%s" % (dir, command[0])
                 os.write(1, ("Child:  ...trying to exec %s\n" % program).encode())
                 # before trying to execute the program, verify the file exists
                 if os.path.isfile(program):
                     try:
-                        command = redirect.handler(command)
-                        command = pipeHelper.handler(command)
-                        os.execve(program, command, os.environ) # try to exec program
-                        # process terminates after succesfully invoking execve
+                        if "|" in command:
+                            print("Found pipe")
+                            command = pipeHelper.handler(program, command)
+                        else:
+                            command = redirect.handler(command)
+                            # command = pipeHelper.handler(command)
+                            os.execve(program, command, os.environ) # try to exec program
+                            # process terminates after succesfully invoking execve
                     except FileNotFoundError:             # ...expected
                         pass                              # ...fail quietly
 

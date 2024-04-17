@@ -1,47 +1,35 @@
 import os, sys, time, re
 
-def hookupPipe(command, readIndex, writeIndex):
-    pid = os.getpid()               # get and remember pid
+def executeCommand(program, command):
+    os.execve(program, command, os.environ)
 
-    pr,pw = os.pipe()
-    for f in (pr, pw):
-        os.set_inheritable(f, True)
-    print("pipe fds: pr=%d, pw=%d" % (pr, pw))
+def hookupPipe(program, command, readIndex, writeIndex, pipeIndex):
+    r, w = os.pipe()
+    pid = os.fork()
 
-    import fileinput
+    if pid > 0:
+        print("pipe parent")
+        #parent
+        os.close(r)
+        os.dup2(w, 1)
+        os.close(w)
+        executeCommand(program, command[:pipeIndex])
+    else:
+        print("pipe child")
+        # child
+        os.close(w)
+        os.dup2(r, 0)
+        os.close(r)
+        executeCommand(program, command[readIndex:len(command)])
 
-    print("About to fork (pid=%d)" % pid)
 
-    rc = os.fork()
-
-    if rc < 0:
-        print("fork failed, returning %d\n" % rc, file=sys.stderr)
-        sys.exit(1)
-
-    elif rc == 0:                   #  child - will write to pipe
-        print("Child: My pid==%d.  Parent's pid=%d" % (os.getpid(), pid), file=sys.stderr)
-        args = ["wc", "p3-exec.py"]
-
-        os.close(1)                 # redirect child's stdout
-        os.dup(pw)
-        for fd in (pr, pw):
-            os.close(fd)
-        print("hello from child")
-                
-    else:                           # parent (forked ok)
-        print("Parent: My pid==%d.  Child's pid=%d" % (os.getpid(), rc), file=sys.stderr)
-        os.close(0)
-        os.dup(pr)
-        for fd in (pw, pr):
-            os.close(fd)
-        for line in fileinput.input():
-            print("From child: <%s>" % line)
-
-def handler(command):
+def handler(program, command):
     marker = len(command)
     if "|" in command:
-        readIndex = command.index("|") - 1
-        writeIndex = command.index("|") + 1
-        marker = min(hookupPipe(command, readIndex, writeIndex), marker)
+        readIndex = command.index("|") + 1
+        writeIndex = command.index("|") - 1
+        pipeIndex = command.index("|")
+        # marker = min(hookupPipe(program, command, readIndex, writeIndex, pipeIndex), marker)
+        hookupPipe(program, command, readIndex, writeIndex, pipeIndex)
     command = command[:marker]
     return command
